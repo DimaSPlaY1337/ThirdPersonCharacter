@@ -32,7 +32,7 @@ protected:
 		TSubclassOf<class AGCProjectile> ProjectileClass;
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Throwables | Parametres | Items")
-		int32 MaxItemsAmount = 5;
+		int32 MaxItemsAmount = 1;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Throwables", meta = (UIMin = -90.0f, UIMax = 90.0f, ClampMin = -90.0f, ClampMax = 90.0f))
 		float ThrowableAngle = 0.0f;

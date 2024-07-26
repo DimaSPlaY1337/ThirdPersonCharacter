@@ -22,6 +22,8 @@ public:
 
 	virtual void OnMoveCompleted(FAIRequestID RequestID, const FPathFollowingResult& Result) override;
 
+	virtual void Tick(float DeltaTime) override;
+
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Movement")
 		float TargetReachRadius = 100.0f;

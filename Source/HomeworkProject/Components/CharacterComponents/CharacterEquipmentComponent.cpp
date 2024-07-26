@@ -56,6 +56,7 @@ void UCharacterEquipmentComponent::EquipItemInSlot(EEquipmentSlots Slot)
 	{
 		if (CurrentThrowableItem->GetItemsAmount() == 0)
 		{
+			EquipItemInSlot(PreviousEquippedSlot);//криво выглядит. Переставить вверх InitialiseCurrentObjects вызывает ошибку.
 			return;
 		}
 	}
@@ -108,7 +109,7 @@ void UCharacterEquipmentComponent::EquipNextItem()
 	uint32 CurrentSlotIndex = (uint32)CurrentEquippedSlot;
 	uint32 NextSlotIndex = NextItemsArraySlotIndex(CurrentSlotIndex);
 
-	while (CurrentSlotIndex != NextSlotIndex 
+	while (CurrentSlotIndex != NextSlotIndex
 		&& IgnoreSlotsWhileSwitching.Contains((EEquipmentSlots)NextSlotIndex)
 		&& IsValid(ItemsArray[NextSlotIndex]))
 	{
@@ -125,7 +126,7 @@ void UCharacterEquipmentComponent::EquipPreviousItem()
 	uint32 CurrentSlotIndex = (uint32)CurrentEquippedSlot;
 	uint32 PreviousSlotIndex = PreviousItemsArraySlotIndex(CurrentSlotIndex);
 
-	while (CurrentSlotIndex != PreviousSlotIndex 
+	while (CurrentSlotIndex != PreviousSlotIndex
 		&& IgnoreSlotsWhileSwitching.Contains((EEquipmentSlots)PreviousSlotIndex)
 		&& IsValid(ItemsArray[PreviousSlotIndex]))
 	{
@@ -357,7 +358,12 @@ void UCharacterEquipmentComponent::ReloadAmmoInCurrentWeapon(int32 NumberOfAmmo,
 		{
 			CurrentEquippedWeapon->EndReload(true);
 		}
-	}	
+	}
+}
+
+void UCharacterEquipmentComponent::ChangeThrowingStatus(bool Status)
+{
+	ThrowingStatus = Status;
 }
 
 void UCharacterEquipmentComponent::OnWeaponReloadComplete()

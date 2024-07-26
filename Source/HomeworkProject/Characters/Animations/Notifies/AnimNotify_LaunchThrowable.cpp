@@ -2,7 +2,7 @@
 
 
 #include "Characters/Animations/Notifies/AnimNotify_LaunchThrowable.h"
-#include "AnimNotify_LaunchThrowable.h"
+
 
 void UAnimNotify_LaunchThrowable::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)
 {

@@ -54,6 +54,12 @@ public:
 
 	void ReloadAmmoInCurrentWeapon(int32 NumberOfAmmo = 0, bool bCheckIsFull = false);
 
+	void ChangeThrowingStatus(bool Status);
+
+	bool GetThrowingStatus() const { return ThrowingStatus; }
+
+	AThrowableItem* GetThrowableItem() { return CurrentThrowableItem; }
+
 protected:
 	virtual void BeginPlay() override;
 
@@ -116,4 +122,6 @@ private:
 	TWeakObjectPtr<class AGCBaseCharacter> CachedBaseCharacter;
 
 	FTimerHandle  EquipTimer;
+
+	bool ThrowingStatus = true;
 };

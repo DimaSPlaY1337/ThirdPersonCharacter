@@ -43,6 +43,12 @@ void AGCAICharacterController::OnMoveCompleted(FAIRequestID RequestID, const FPa
 	TryMoveToNextTarget();
 }
 
+void AGCAICharacterController::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	Blackboard->SetValueAsBool(BB_IsThrowing, CachedAICharacter->GetCharacterEquipmentComponent_Mutable()->GetThrowingStatus());
+}
+
 void AGCAICharacterController::BeginPlay()
 {
 	Super::BeginPlay();
@@ -54,6 +60,7 @@ void AGCAICharacterController::BeginPlay()
 		{
 			Blackboard->SetValueAsVector(BB_NextLocation, ClosestWayPoint);
 			Blackboard->SetValueAsObject(BB_CurrentTarget, nullptr);
+			Blackboard->SetValueAsBool(BB_IsThrowing, false);
 		}
 		bIsPatrolling = true;
 	}
@@ -72,7 +79,6 @@ void AGCAICharacterController::TryMoveToNextTarget()
 			//1 параметр - точка фокуса, 2 параметр - тип фокуса.
 		}
 		bIsPatrolling = false;
-		//Blackboard->SetValueAsBool(BB_IsThrowing, true);
 	}
 	else if(PatrollingComponent->CanPatrol())
 	{
@@ -84,7 +90,6 @@ void AGCAICharacterController::TryMoveToNextTarget()
 			Blackboard->SetValueAsObject(BB_CurrentTarget, nullptr);
 		}
 		bIsPatrolling = true;
-		Blackboard->SetValueAsBool(BB_IsThrowing, false);
 	}
 }
 

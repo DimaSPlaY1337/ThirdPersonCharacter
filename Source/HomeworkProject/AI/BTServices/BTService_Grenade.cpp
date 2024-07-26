@@ -44,5 +44,4 @@ void UBTService_Grenade::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* Node
 	}
 
 	Character->EquipPrimaryItem();
-	Blackboard->SetValueAsBool(BB_IsThrowing, true);//придумать декоратор и будет ок
 }

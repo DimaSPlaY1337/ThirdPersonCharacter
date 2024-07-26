@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Curves/CurveVector.h"
+#include "Actors/Equipment/Throwables/ThrowableItem.h"
 #include "Animation/AnimMontage.h"
 #include "GenericTeamAgentInterface.h"
 #include "Components/CharacterComponents/CharacterEquipmentComponent.h"

@@ -26,5 +26,6 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "AI")
 		float MaxThrowDistance = 800.0f;
 
-
+private:
+	bool Status = false;
 };
