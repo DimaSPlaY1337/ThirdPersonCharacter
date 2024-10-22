@@ -11,11 +11,19 @@
 #include "GameCodeTypes.h"
 #include "Perception/AISense_Damage.h"
 #include "DrawDebugHelpers.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values for this component's properties
 UCharacterAttributesComponent::UCharacterAttributesComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
+	SetIsReplicatedByDefault(true);
+}
+
+void UCharacterAttributesComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(UCharacterAttributesComponent, Health);
 }
 
 // Called every frame
@@ -57,8 +65,24 @@ void UCharacterAttributesComponent::BeginPlay()
 	Health = MaxHealth;
 	CurrentStamina = MaxStamina;
 	CurrentOxygen = MaxOxygen;
-	CachedBaseCharacterOwner->OnTakeAnyDamage.AddDynamic(this, &UCharacterAttributesComponent::OnTakeAnyDamage);//подписываемс€ на получение любого урона
+	if (GetOwner()->HasAuthority())
+		CachedBaseCharacterOwner->OnTakeAnyDamage.AddDynamic(this, &UCharacterAttributesComponent::OnTakeAnyDamage);//подписываемс€ на получение любого урона
+}
 
+void UCharacterAttributesComponent::OnRep_Health()
+{
+	OnHealthChanged();
+}
+
+void UCharacterAttributesComponent::OnHealthChanged()
+{
+	if (Health <= 0.0f)
+	{
+		if (OnDeathEvent.IsBound())//если делегат прив€зан
+		{
+			OnDeathEvent.Broadcast();//оповещвем всех кто прив€зан к этому событию
+		}
+	}
 }
 
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
@@ -86,15 +110,7 @@ void UCharacterAttributesComponent::OnTakeAnyDamage(AActor* DamagedActor, float 
 
 	UE_LOG(LogDamage, Warning, TEXT("OnTakeAnyDamage %s recevied %.2f amout of damage from %s"), *CachedBaseCharacterOwner->GetName(), Damage, *DamageCauser->GetName());
 	Health = FMath::Clamp(Health - Damage, 0.0f, MaxHealth);
-
-	if (Health <= 0.0f)
-	{
-		UE_LOG(LogDamage, Warning, TEXT("Character %s is killed by an actor %s"), *CachedBaseCharacterOwner->GetName(), *DamageCauser->GetName());
-		if (OnDeathEvent.IsBound())//если делегат прив€зан
-		{
-			OnDeathEvent.Broadcast();//оповещвем всех кто прив€зан к этому событию
-		}
-	}
+	OnHealthChanged();
 }
 
 void UCharacterAttributesComponent::UpdateStaminaValue(float DeltaTime)

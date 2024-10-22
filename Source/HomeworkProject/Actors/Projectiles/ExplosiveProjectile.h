@@ -31,6 +31,9 @@ protected:
 	virtual void Explode() override;
 
 private:
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_Explode();
+
 	AController* GetController();
 
 	FTimerHandle DetonationTimer;

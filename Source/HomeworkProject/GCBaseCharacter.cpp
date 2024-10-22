@@ -17,6 +17,8 @@
 #include "Actors/Equipment/Weapons/RangeWeaponItem.h"
 #include "Components/CharacterComponents/CharacterEquipmentComponent.h"
 #include "AI/Controllers/AITurretController.h"
+#include "Actors/Environment/PlatformTrigger.h"
+#include "Net/UnrealNetwork.h"
 
 AGCBaseCharacter::AGCBaseCharacter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UGCBaseCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -53,6 +55,12 @@ void AGCBaseCharacter::PossessedBy(AController* NewController)
 		FGenericTeamId TeamId((uint8)Team);
 		AIController->SetGenericTeamId(TeamId);
 	}
+}
+
+void AGCBaseCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AGCBaseCharacter, bIsMantling);
 }
 
 void AGCBaseCharacter::ChangeCrouchState()
@@ -150,6 +158,8 @@ void AGCBaseCharacter::Mantle(bool bForce /*= false*/)
 	FledgeDescription LedgeDescription;
 	if (LedgeDetectorComponent->DetectLedge(LedgeDescription) && !GCBaseCharacterMovementComponent->IsMantling())
 	{
+		bIsMantling = true;
+
 		FMantlingMovementParameters MantlingParamters;
 		MantlingParamters.InitialRotation = GetActorRotation();
 		MantlingParamters.TargetRotation = LedgeDescription.Rotation;
@@ -173,7 +183,9 @@ void AGCBaseCharacter::Mantle(bool bForce /*= false*/)
 
 		MantlingParamters.InitialAnimationLocation = MantlingParamters.TargetLocation - MantlingSettings.AnimationCorrectionZ * FVector::UpVector + MantlingSettings.AnimationCorrectionXY * LedgeDescription.LedgeNormal;
 
-		GCBaseCharacterMovementComponent->StartMantle(MantlingParamters);
+		//сделано с целью чтобы несколько раз не запускать mantle
+		if (IsLocallyControlled() || GetLocalRole() == ROLE_Authority)
+			GCBaseCharacterMovementComponent->StartMantle(MantlingParamters);
 
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
 		AnimInstance->Montage_Play(MantlingSettings.MantlingMontage, 1.0f, EMontagePlayReturnType::Duration, MantlingParamters.StartTime);
@@ -236,6 +248,15 @@ FGenericTeamId AGCBaseCharacter::GetGenericTeamId() const
 	return FGenericTeamId((uint8)Team);
 }
 
+void AGCBaseCharacter::OnRep_IsMantling(bool bWasMantling)
+{
+	if (GetLocalRole() == ROLE_SimulatedProxy && !bWasMantling && bIsMantling)
+	{
+		Mantle(true);
+	}
+
+}
+
 void AGCBaseCharacter::ClimbLadderUp(float Value)
 {
 	if (GetBaseCharacterMovementComponent()->IsOnLadder() && !FMath::IsNearlyZero(Value))
@@ -281,9 +302,9 @@ void AGCBaseCharacter::InteractWithZipline()
 	}
 }
 
-void AGCBaseCharacter::Sliding()
+void AGCBaseCharacter::Sliding(bool bForce)
 {
-	if (GCBaseCharacterMovementComponent->IsSprinting() && !GCBaseCharacterMovementComponent->IsSliding())
+	if ((GCBaseCharacterMovementComponent->IsSprinting() && !GCBaseCharacterMovementComponent->IsSliding()) || bForce)
 	{
 		GCBaseCharacterMovementComponent->StartSlide();
 		UAnimInstance* AnimInstance = GetMesh()->GetAnimInstance();
@@ -380,6 +401,17 @@ void AGCBaseCharacter::StopAiming()
 	bIsAiming = false;
 	CurrentAimingMovementSpeed = 0.0f;
 	OnStopAiming();
+}
+
+//возвращает текущее значение поворота в локальной системе координат
+FRotator AGCBaseCharacter::GetAimOffset()
+{
+	//Vector() тоже самое что GetForwardVector()
+	FVector AimDirectionWorld = GetBaseAimRotation().Vector();
+	FVector AimDirectionLocal = GetTransform().InverseTransformVectorNoScale(AimDirectionWorld);
+	FRotator Result = AimDirectionLocal.ToOrientationRotator();
+
+	return Result;
 }
 
 bool AGCBaseCharacter::IsAiming() const

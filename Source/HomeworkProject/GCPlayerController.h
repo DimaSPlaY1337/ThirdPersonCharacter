@@ -23,10 +23,10 @@ public:
 	void SetIgnoreCameraPitch(bool bIgnoreCameraPitch_In);
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Widgets")
-		TSubclassOf<class UPlayerHUDWidget> PlayerHUDWidgetClass;
-
 	virtual void SetupInputComponent() override;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Widgets")
+	TSubclassOf<class UPlayerHUDWidget> PlayerHUDWidgetClass;
 
 private:
 	void MoveForward(float value);

@@ -17,6 +17,8 @@ class HOMEWORKPROJECT_API AEquipableItem : public AActor
 	GENERATED_BODY()
 
 public:
+	AEquipableItem();
+
 	virtual void SetOwner(AActor* NewOwner) override;
 
 	EEquippedItemType GetItemType() const { return ItemType; }

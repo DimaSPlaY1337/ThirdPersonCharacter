@@ -35,6 +35,8 @@ class HOMEWORKPROJECT_API ARangeWeaponItem : public AEquipableItem
 	GENERATED_BODY()
 
 public:
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps)const override;
+
 	ARangeWeaponItem();
 
 	void StartFire();
@@ -80,7 +82,7 @@ public:
 	bool CanShoot() const;
 
 	FOnAmmoChanged OnAmmoChanged;
-	
+
 	FOnReloadComplete OnReloadComplete;
 
 	virtual EReticleType GetReticleType() const;
@@ -90,82 +92,89 @@ public:
 	void SetCurrentSlotsType(EAmunitionType Type);
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon | Parameters | Ammo", meta = (ClampMin = 0, UIMin = 0))
-		bool AvaliableOptionalAmmo = false;
+	bool AvaliableOptionalAmmo = false;
+
+	UFUNCTION(Server, Reliable)
+	void Server_StartReload();
 
 protected:
 	virtual void BeginPlay() override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-		class USkeletalMeshComponent* WeaponMesh;
+	class USkeletalMeshComponent* WeaponMesh;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
-		class UWeaponBarellComponent* WeaponBarell;
+	class UWeaponBarellComponent* WeaponBarell;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations | Weapon")
-		UAnimMontage* WeaponFireMontage;
-	
+	UAnimMontage* WeaponFireMontage;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations | Weapon")
-		UAnimMontage* WeaponReloadMontage;
+	UAnimMontage* WeaponReloadMontage;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations | Character")
-		UAnimMontage* CharacterFireMontage;
-	
+	UAnimMontage* CharacterFireMontage;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations | Character")
-		UAnimMontage* CharacterReloadMontage;
-	
+	UAnimMontage* CharacterReloadMontage;
+
 	//FullClip reload type adds ammo only when the whole reload animation is successfully played
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations | Character")
-		EReloadType ReloadType = EReloadType::FullClip;
-	
+	EReloadType ReloadType = EReloadType::FullClip;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Animations | Character")
-		EReloadType OptionalReloadType = EReloadType::ByBullet;
+	EReloadType OptionalReloadType = EReloadType::ByBullet;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon | Parameters")
-		EWeaponFireMode WeaponFireMode = EWeaponFireMode::Single;
+	EWeaponFireMode WeaponFireMode = EWeaponFireMode::Single;
 
 	//кол-во выстрелов в минуту
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon | Parameters", meta = (ClampMin = 1.0f, UIMin = 1.0f))
-		float RateOfFire = 600.0f;
+	float RateOfFire = 600.0f;
 
 	//половина угла разброса
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon | Parameters", meta = (ClampMin = 0.0f, UIMin = 0.0f, ClampMax = 2.0f, UIMax = 2.0f))
-		float SpreadAngle = 1.0f;
+	float SpreadAngle = 1.0f;
 	//половина угла разброса во вермя прицеливания
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon | Parameters", meta = (ClampMin = 0.0f, UIMin = 0.0f, ClampMax = 2.0f, UIMax = 2.0f))
-		float AimSpreadAngle = 0.25f;
+	float AimSpreadAngle = 0.25f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon | Parameters", meta = (ClampMin = 0.0f, UIMin = 0.0f, ClampMax = 2.0f, UIMax = 2.0f))
-		float AimMovementMaxSpeed = 200.0f;
+	float AimMovementMaxSpeed = 200.0f;
 
 	//угл обзора камеры
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon | Parameters", meta = (ClampMin = 0.0f, UIMin = 0.0f, ClampMax = 120.0f, UIMax = 120.0f))
-		float AimTurnModifier = 60.0f;
+	float AimTurnModifier = 60.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon | Parameters", meta = (ClampMin = 0.0f, UIMin = 0.0f, ClampMax = 120.0f, UIMax = 120.0f))
-		float AimingFOV = 60.0f;
+	float AimingFOV = 60.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Aim | Modifiers", meta = (ClampMin = 0.0f, UIMin = 0.0f, ClampMax = 1.0f, UIMax = 1.0f))
-		float AimingTurnModifier = 0.0f;
+	float AimingTurnModifier = 0.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Aim | Modifiers", meta = (ClampMin = 0.0f, UIMin = 0.0f, ClampMax = 1.0f, UIMax = 1.0f))
-		float AimimgLookUpModifier = 0.0f;
+	float AimimgLookUpModifier = 0.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon | Parameters | Ammo", meta = (ClampMin = 1, UIMin = 1))
-		int32 MaxAmmo = 30;
-	
+	int32 MaxAmmo = 30;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon | Parameters | Ammo", meta = (ClampMin = 0, UIMin = 0))
-		int32 MaxOptionalAmmo = 0;
-	
+	int32 MaxOptionalAmmo = 0;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon | Parameters | Ammo")
-		bool bAutoReload = true;
-	
+	bool bAutoReload = true;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon | Parameters | Ammo")
-		EAmunitionType AmmoType;
+	EAmunitionType AmmoType;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Reticle")
-		EReticleType AimReticleType = EReticleType::Default;
+	EReticleType AimReticleType = EReticleType::Default;
 
 private:
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_StartReload();
+
+	UPROPERTY(Replicated)
 	int32 Ammo;
 	int32 OptionalAmmo;
 

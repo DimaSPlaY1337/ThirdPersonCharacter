@@ -26,11 +26,13 @@ class HOMEWORKPROJECT_API ATurret : public APawn
 public:
 	ATurret();
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	virtual void PossessedBy(AController* NewController) override;
 
 	virtual void Tick(float DeltaTime) override;
 
-	void SetCurrentTarget(AActor* NewTarget);
+	void OnCurrentTargetSet();
 
 	virtual FVector GetPawnViewLocation() const override;//место которое отвечает за расположение глаз
 
@@ -47,6 +49,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	UTurretAttributesComponent* TurretAttributesComponent;
+
+	UPROPERTY(ReplicatedUsing=OnRep_CurrentTarget)
+	AActor* CurrentTarget = nullptr;//цель в которую стредяет башня
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
@@ -102,7 +107,9 @@ private:
 	ETurretState CurrentTurretState = ETurretState::Searching;
 	ETurretState CachedTurretState = ETurretState::Searching;
 
-	AActor* CurrentTarget = nullptr;//цель в которую стредяет башня
+	UFUNCTION()
+	void OnRep_CurrentTarget();
+
 	AActor* CachedTarget = nullptr;//цель в которую стредяет башня
 
 	float GetFireInterval() const;

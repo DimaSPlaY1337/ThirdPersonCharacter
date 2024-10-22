@@ -64,6 +64,8 @@ public:
 
 	virtual void PossessedBy(AController* NewController) override;
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	virtual void MoveForward(float value) {};
 	virtual void MoveRight(float value) {};
 	virtual void Turn(float value) {};
@@ -84,10 +86,16 @@ public:
 	UFUNCTION(BlueprintCallable)
 	void Mantle(bool bForce = false);
 
+	UPROPERTY(ReplicatedUsing = OnRep_IsMantling)
+	bool bIsMantling;
+
+	UFUNCTION()
+	void OnRep_IsMantling(bool bWasMantling);
+
 	void ClimbLadderUp(float Value);
 	void InteractWithLadder();
 	void InteractWithZipline();
-	void Sliding();
+	void Sliding(bool bForce);
 	const class ALadder* GetAvailableLadder() const;
 	const class AZipline* GetAvailableZipline() const;
 	virtual void Prone();
@@ -101,6 +109,9 @@ public:
 
 	void StartAiming();
 	void StopAiming();
+
+	FRotator GetAimOffset();
+
 	bool IsAiming() const;
 	void Reload();
 
@@ -152,6 +163,7 @@ public:
 	void SecondaryMeleeAttack();
 
 	virtual FGenericTeamId GetGenericTeamId() const override;
+
 protected:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Character | Movement")

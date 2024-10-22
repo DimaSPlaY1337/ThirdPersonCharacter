@@ -17,7 +17,8 @@ void AGCPlayerController::SetPawn(APawn* InPawn)
 {
 	Super::SetPawn(InPawn);
 	CachedBaseCharacter = Cast<AGCBaseCharacter>(InPawn);
-	CreateAndInitializeWidgets();
+	if (IsLocalController())
+		CreateAndInitializeWidgets();
 }
 
 bool AGCPlayerController::GetIgnoreCameraPitch() const
@@ -222,7 +223,7 @@ void AGCPlayerController::Sliding()
 {
 	if (CachedBaseCharacter.IsValid())
 	{
-		CachedBaseCharacter->Sliding();
+		CachedBaseCharacter->Sliding(false);
 	}
 }
 
@@ -340,7 +341,7 @@ void AGCPlayerController::CreateAndInitializeWidgets()
 		{
 			UCharacterEquipmentComponent* CharacterEquipment = CachedBaseCharacter->GetCharacterEquipmentComponent_Mutable();
 			CharacterEquipment->OnCurrentWeaponAmmoChangedEvent.AddUFunction(AmmoWidget, FName("UpdateAmmoCount"));
-			CharacterEquipment->OnCurrentThrowableItemsAmountChangedEvent.AddUFunction(AmmoWidget, FName("UpdateThrowableItems"));
+			CharacterEquipment->OnCurrentThrowableItemsAmountChangedEvent.AddUFunction(AmmoWidget, FName("UpdateThrowableItems"));//проблема с подпиской
 		}
 
 		UWidgetCharacterAttributes* HealthBar = PlayerHUDWidget->GetWidgetCharacterAttributes(EAttributesType::Health);

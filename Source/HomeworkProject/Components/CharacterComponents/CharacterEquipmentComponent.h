@@ -25,6 +25,10 @@ class HOMEWORKPROJECT_API UCharacterEquipmentComponent : public UActorComponent
 	GENERATED_BODY()
 
 public:
+	UCharacterEquipmentComponent();
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps)const override;
+
 	EEquippedItemType GetCurrentEquippedItemType() const;
 
 	ARangeWeaponItem* GetCurrentRangeWeapon() const;
@@ -44,6 +48,7 @@ public:
 
 	void AttachCurrentItemToEquippedSocket();
 
+	UFUNCTION(Server, Reliable)
 	void LaunchCurrentThrowableItem();
 
 	bool CanChangeAmmoType() const;
@@ -66,20 +71,30 @@ protected:
 	void UnEquipCurrentItem();
 	//кол-во обойм
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Loadout")
-		TMap<EAmunitionType, int32> MaxAmunitionAmount;
+	TMap<EAmunitionType, int32> MaxAmunitionAmount;
 	//коллекция разгрузки по оружию
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Loadout")
-		TMap<EEquipmentSlots, TSubclassOf<class AEquipableItem>> ItemsLoadout;
+	TMap<EEquipmentSlots, TSubclassOf<class AEquipableItem>> ItemsLoadout;
 	//коллекция которая говорит какие слоты мы должны игнорировать при переключении
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Loadout")
-		TSet<EEquipmentSlots> IgnoreSlotsWhileSwitching;//коллекция уникальных значений
+	TSet<EEquipmentSlots> IgnoreSlotsWhileSwitching;//коллекция уникальных значений
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Loadout")
-		EEquipmentSlots AutoEquipItemInSlot = EEquipmentSlots::None;
+	EEquipmentSlots AutoEquipItemInSlot = EEquipmentSlots::None;
 
 private:
-	TItemsArray ItemsArray;
-	TAmunitionArray AmunitionArray;
+	UFUNCTION(Server, Reliable)//нужно чтобы инфа дошла до сервера
+		void Server_EquipItemInSlot(EEquipmentSlots Slot);
+
+	UPROPERTY(Replicated)
+	TArray<int32> AmunitionArray;
+
+	//у клиентов убираем ненужные вещи
+	UPROPERTY(ReplicatedUsing = OnRep_ItemsArray)
+	TArray<AEquipableItem*> ItemsArray;
+
+	UFUNCTION()
+	void OnRep_ItemsArray();
 
 	int32 GetAvailableAmunitionForCurrentWeapon();
 
@@ -94,23 +109,33 @@ private:
 	uint32 NextItemsArraySlotIndex(uint32 CurrentSlotIndex);
 	uint32 PreviousItemsArraySlotIndex(uint32 CurrentSlotIndex);
 
+	//UPROPERTY(ReplicatedUsing= OnRep_PlayMontage)
 	bool bIsEquipping;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_PlayMontage(UAnimMontage* EquipMontage);
 
 	bool IsAmmoChanged;
 
 	UFUNCTION()
-		void OnWeaponReloadComplete();
+	void OnWeaponReloadComplete();
 
 	UFUNCTION()
-		void OnCurrentWeaponAmmoChanged(int32 Ammo);
+	void OnCurrentWeaponAmmoChanged(int32 Ammo);
 
+	UFUNCTION(Client, Reliable)
 	void OnCurrentThrowableItemsAmountChanged(int32 Items);
 
 	FDelegateHandle OnCurrentWeaponAmmoChangedHandle;
 	FDelegateHandle OnCurrentWeaponReloadedHandle;
 
 	EEquipmentSlots PreviousEquippedSlot;
+
+	UPROPERTY(ReplicatedUsing = OnRep_CurrentEquippedSlot)
 	EEquipmentSlots CurrentEquippedSlot;
+
+	UFUNCTION()
+	void OnRep_CurrentEquippedSlot(EEquipmentSlots CurrentEquippedSlot_Old);
 
 	EAmunitionType CurrentAmunitionType;
 

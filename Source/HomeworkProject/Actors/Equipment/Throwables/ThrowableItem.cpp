@@ -3,7 +3,20 @@
 
 #include "Actors/Equipment/Throwables/ThrowableItem.h"
 #include "GCBaseCharacter.h"
-#include "Actors/Projectiles/GCProjectile.h"
+#include "Net/UnrealNetwork.h"
+
+AThrowableItem::AThrowableItem()
+{
+	SetReplicates(true);
+}
+
+void AThrowableItem::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(AThrowableItem, GrenadePool);
+	DOREPLIFETIME(AThrowableItem, CurrentGrenadeIndex);
+	DOREPLIFETIME(AThrowableItem, Items);
+}
 
 void AThrowableItem::Throw()
 {
@@ -41,11 +54,14 @@ void AThrowableItem::Throw()
 	FVector SocketInViewSpace = PlayerViewTransform.InverseTransformPosition(ThrowableSocketLocation);
 
 	FVector SpawnLocation = PlayerViewPoint + ViewDirection * SocketInViewSpace.X;
-	AGCProjectile* Projectile = GetWorld()->SpawnActor<AGCProjectile>(ProjectileClass, SpawnLocation, FRotator::ZeroRotator);
+	if (CurrentGrenadeIndex > MaxItemsAmount)
+		CurrentGrenadeIndex = 0;
+	AGCProjectile* Projectile = GrenadePool[CurrentGrenadeIndex];
+	//достаём из массива GrenadePool
 	if (IsValid(Projectile))
 	{
-		Projectile->SetOwner(GetOwner());
-		Projectile->LaunchProjectile(LaunchDirection.GetSafeNormal());
+		Server_LaunchProjectile(Projectile, SpawnLocation, LaunchDirection);
+		++CurrentGrenadeIndex;
 	}
 }
 
@@ -58,13 +74,13 @@ int32 AThrowableItem::GetItemsAmount() const
 {
 	return Items;
 }
-
+//_Implementation
 void AThrowableItem::SetItemsAmount(int32 NewItems)
 {
 	Items = NewItems;
 	if (OnThrowableItemsAmountChanged.IsBound())
 	{
-		OnThrowableItemsAmountChanged.Broadcast(NewItems);
+		OnThrowableItemsAmountChanged.Broadcast(Items);
 	}
 }
 
@@ -72,5 +88,26 @@ void AThrowableItem::BeginPlay()
 {
 	Super::BeginPlay();
 	SetItemsAmount(MaxItemsAmount);
-	UE_LOG(LogTemp, Warning, TEXT("%d"), MaxItemsAmount);
+
+	if (GetLocalRole() < ROLE_Authority)
+		return;
+
+	GrenadePool.Reserve(MaxItemsAmount);
+	for (int32 i = 0; i < MaxItemsAmount; ++i)
+	{
+		AGCProjectile* Projectile = GetWorld()->SpawnActor<AGCProjectile>(ProjectileClass, GrenadePoolLocation, FRotator::ZeroRotator);
+		APawn* PawnOwner = Cast<APawn>(GetOwner());
+		Projectile->SetProjectileActive(false);
+		Projectile->SetOwner(PawnOwner);
+		GrenadePool.Add(Projectile);
+	}
 }
+void AThrowableItem::Server_LaunchProjectile(AGCProjectile* Projectile, FVector SpawnLocation, FVector LaunchDirection)
+{
+	Projectile->SetActorLocation(SpawnLocation);
+	Projectile->SetActorRotation(LaunchDirection.ToOrientationRotator());
+	Projectile->SetProjectileActive(true);
+	Projectile->SetOwner(GetOwner());
+	Projectile->LaunchProjectile(LaunchDirection.GetSafeNormal());
+}
+

@@ -19,6 +19,8 @@ public:
 	// Sets default values for this component's properties
 	UCharacterAttributesComponent();
 
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 	FORCEINLINE UGCBaseCharacterMovementComponent* GetBaseCharacterMovementComponent() const { return GCBaseCharacterMovementComponent; }
@@ -61,10 +63,17 @@ protected:
 		float SwimOxygenConsumptionVelocity = 2.0f; // Скорость потребления кислорода во время плавания под водой в секунду
 
 private:
+	UPROPERTY(ReplicatedUsing = OnRep_Health)
 	float Health = 0.0f;
+
 	float CurrentStamina;
 	float Oxygen;
 	float CurrentOxygen;
+
+	UFUNCTION()
+	void OnRep_Health();
+
+	void OnHealthChanged();
 
 	UGCBaseCharacterMovementComponent* GCBaseCharacterMovementComponent;
 

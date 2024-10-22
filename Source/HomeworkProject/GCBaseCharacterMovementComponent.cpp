@@ -10,6 +10,56 @@
 #include "Components/CapsuleComponent.h"
 #include "Components/TimelineComponent.h"
 #include "HomeworkProject/GameCodeTypes.h"
+#include "Net/UnrealNetwork.h"
+
+UGCBaseCharacterMovementComponent::UGCBaseCharacterMovementComponent()
+{
+	SetIsReplicatedByDefault(true);
+}
+
+void UGCBaseCharacterMovementComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(UGCBaseCharacterMovementComponent, bIsSliding);
+}
+
+FNetworkPredictionData_Client* UGCBaseCharacterMovementComponent::GetPredictionData_Client() const
+{
+	//создаЄм новый ClientPredictionData в соответствующем формате если выполн€етс€ условие
+	if (ClientPredictionData == nullptr)
+	{
+		//Mutable означает что сн€ты конст квалификаторы
+		UGCBaseCharacterMovementComponent* MutableThis = const_cast<UGCBaseCharacterMovementComponent*>(this);
+		MutableThis->ClientPredictionData = new FNetworkPredictionData_Client_Character_GC(*this);
+	}
+	return ClientPredictionData;
+}
+
+void UGCBaseCharacterMovementComponent::UpdateFromCompressedFlags(uint8 Flags)
+{
+	Super::UpdateFromCompressedFlags(Flags);
+
+	bool bWasMantling = GetBaseCharacterOwner()->bIsMantling;
+	bool bWasSliding = bIsSliding;
+	//если флаг не равен 0 то флаг заполн€етс€
+	bIsSprinting = (Flags & FSavedMove_Character::FLAG_Custom_0) != 0;
+	bool bIsMantling = (Flags & FSavedMove_Character::FLAG_Custom_1) != 0;
+	bool IsSliding = (Flags & FSavedMove_Character::FLAG_Custom_2) != 0;
+
+	if (GetBaseCharacterOwner()->GetLocalRole() == ROLE_Authority)
+	{
+		if (!bWasSliding && IsSliding)
+			GetBaseCharacterOwner()->Sliding(true);
+	}
+
+	if (GetBaseCharacterOwner()->GetLocalRole() == ROLE_Authority)
+	{
+		if (!bWasMantling && bIsMantling)
+		{
+			GetBaseCharacterOwner()->Mantle(true);//говорим что он должен точно подт€нутьс€
+		}
+	}
+}
 
 void UGCBaseCharacterMovementComponent::PhysicsRotation(float DeltaTime)
 {
@@ -206,7 +256,6 @@ void UGCBaseCharacterMovementComponent::PhysMantling(float DeltaTime, int32 Iter
 {
 	float ElapsedTime = GetWorld()->GetTimerManager().GetTimerElapsed(MantlingTimer) + CurrentMantlingParameters.StartTime;
 	FVector MantlingCurveValue = CurrentMantlingParameters.MantlingCurve->GetVectorValue(ElapsedTime);//с помощью этого интерполируемс€ между началом и концом
-	//UE_LOG(LogTemp, Warning, TEXT("%f"), ElapsedTime);
 	float PositionAlpha = MantlingCurveValue.X;//равна самой первой пр€мой котора€ есть
 	float XYCorrectionAlpha = MantlingCurveValue.Y;//интерп вдоль осей xy
 	float ZCorrectionAlpha = MantlingCurveValue.Z;
@@ -228,6 +277,7 @@ void UGCBaseCharacterMovementComponent::PhysMantling(float DeltaTime, int32 Iter
 	FRotator NewRotation = FMath::Lerp(CurrentMantlingParameters.InitialRotation, CurrentMantlingParameters.TargetRotation, PositionAlpha);
 	FVector Delta;
 	Delta = NewLocation - GetActorLocation();
+	Velocity = Delta / DeltaTime;
 
 	FHitResult Hit;
 	SafeMoveUpdatedComponent(Delta, NewRotation, false, Hit);
@@ -505,6 +555,33 @@ bool UGCBaseCharacterMovementComponent::IsSprinting() const
 	return bIsSprinting;
 }
 
+void UGCBaseCharacterMovementComponent::DeltaHeight_Implementation(float Delta)
+{
+	if (bCrouchMaintainsBaseLocation)
+	{
+		UpdatedComponent->MoveComponent(FVector(0.f, 0.f, Delta), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
+	}
+}
+
+void UGCBaseCharacterMovementComponent::Server_Launch_Implementation(const FVector SlideVelocity)
+{
+	Launch(SlideVelocity);
+	Multicast_Launch(SlideVelocity);
+}
+
+void UGCBaseCharacterMovementComponent::Multicast_Launch_Implementation(const FVector SlideVelocity)
+{
+	Launch(SlideVelocity);
+}
+
+void UGCBaseCharacterMovementComponent::OnRep_IsSliding(bool bWasSliding)
+{
+	if (GetBaseCharacterOwner()->GetLocalRole() == ROLE_SimulatedProxy && !bWasSliding && bIsSliding)
+	{
+		GetBaseCharacterOwner()->Sliding(true);
+	}
+}
+
 void UGCBaseCharacterMovementComponent::AttachToWall(EWallRunSide Side, const FVector& Direction)
 {
 	GEngine->AddOnScreenDebugMessage(-1, 1.0f, FColor::Green, TEXT("Start"));
@@ -635,60 +712,86 @@ void UGCBaseCharacterMovementComponent::JumpFromWall()
 		DetachFromWall();
 	}
 }
-
+/*if (GetOwner()->GetLocalRole() == ROLE_Authority)
+	pc->Client_MoveUpMesh(SlideDelta);*/
+	/*if (CharacterOwner->GetMesh() && GetOwner()->GetLocalRole() == ROLE_Authority)
+	{
+		pc->OnStartSlide(SlideDelta);
+	}*/
 void UGCBaseCharacterMovementComponent::StartSlide()
 {
 	DefaultCharacter = CharacterOwner->GetClass()->GetDefaultObject<ACharacter>();
-	bIsSliding = true;
 	bOrientRotationToMovement = false;
 	SetPlaneConstraintEnabled(true);
 	SetPlaneConstraintNormal(FVector::UpVector);
 
-	pc = Cast<APlayerCharacter>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
-	const float delta = DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight() - SlideCaspsuleHalfHeight;
+	pc = StaticCast<APlayerCharacter*>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	SlideDelta = DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight() - SlideCaspsuleHalfHeight;
 	const FVector SlideDirection = GetCharacterOwner()->GetActorForwardVector();
 	const FVector SlideVelocity = SlideDirection * SlideSpeed;
 
 	CharacterOwner->GetCapsuleComponent()->SetCapsuleSize(CharacterOwner->GetCapsuleComponent()->GetUnscaledCapsuleRadius(), SlideCaspsuleHalfHeight);
 
-	Launch(SlideVelocity);
+	Server_Launch(SlideVelocity);
 
-	if (CharacterOwner->GetMesh())
+	if (CharacterOwner->GetMesh() && GetOwner()->GetLocalRole() == ROLE_AutonomousProxy)
+		pc->OnStartSlide(SlideDelta);//здесь происходит смещение мешки и камеры
+
+	DeltaHeight(-SlideDelta);//здесь € смещаю компоненту с помощью NetMulticast(то есть делаю то, что закоментировано снизу)
+	/*if (bCrouchMaintainsBaseLocation && GetOwner()->GetLocalRole() == ROLE_SimulatedProxy)
 	{
-		pc->OnStartSlide(delta);
-	}
-	if (bCrouchMaintainsBaseLocation)
-	{
-		UpdatedComponent->MoveComponent(FVector(0.f, 0.f, -delta), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
-	}
+		UpdatedComponent->MoveComponent(FVector(0.f, 0.f, -SlideDelta), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
+
+	}*/
+	bIsSliding = true;
 }
 
 void UGCBaseCharacterMovementComponent::StopSlide()
 {
 	bOrientRotationToMovement = true;
-	bIsSliding = false;
 	SetPlaneConstraintEnabled(false);
 	SetPlaneConstraintNormal(FVector::ZeroVector);
 
 	const float CompScale = CharacterOwner->GetCapsuleComponent()->GetShapeScale();
 	const float ScaledHalfHeight = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-	//const float HHAdjust = DefaultCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - ScaledHalfHeight;
-	const float delta = DefaultCharacter->GetCapsuleComponent()->GetScaledCapsuleHalfHeight() - SlideCaspsuleHalfHeight;
 
 	FVector CharacterLocation = UpdatedComponent->GetComponentLocation();
-	CharacterLocation.Z += delta;
+	CharacterLocation.Z += SlideDelta;
 	CharacterOwner->GetCapsuleComponent()->SetRelativeLocation(CharacterLocation);
 	CharacterOwner->GetCapsuleComponent()->SetCapsuleSize(DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleRadius(), DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight(), true);
 
-	pc->OnEndSlide(delta);
-	if (IsEncroached())
+	if (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy)
 	{
-		pc->Crouch();
+		pc->OnEndSlide(SlideDelta);
+		if (IsEncroached())
+			pc->Crouch();
 	}
+	//if (GetOwner()->GetLocalRole() == ROLE_Authority)
+		pc->Client_MoveDownMesh(SlideDelta);
+	//if (CharacterOwner->GetMesh() && GetOwner()->GetLocalRole() == ROLE_Authority)
+	//{
+	//	pc->OnEndSlide(SlideDelta);
+	//	//DeltaMeshHeightDown(pc);
+	//	if (IsEncroached())
+	//		pc->Crouch();
+	//}
+	//pc->Client_MoveDownMesh();
+	DeltaHeight(SlideDelta);
+	//if (bCrouchMaintainsBaseLocation && GetOwner()->GetLocalRole() == ROLE_SimulatedProxy)
+	//{
+	//	UpdatedComponent->MoveComponent(FVector(0.f, 0.f, SlideDelta), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
+	//	
+	//}
+	bIsSliding = false;
 }
 
 void UGCBaseCharacterMovementComponent::PhysCustom(float DeltaTime, int32 Iterations)//отрабатывает когда включен кастом мод каждый тик
 {
+	if (GetBaseCharacterOwner()->GetLocalRole() == ROLE_SimulatedProxy)
+	{
+		return;
+	}
+
 	switch (CustomMovementMode)
 	{
 	case(uint8)ECustomMovementMode::CMOVE_WallRun:
@@ -719,6 +822,7 @@ void UGCBaseCharacterMovementComponent::PhysCustom(float DeltaTime, int32 Iterat
 
 void UGCBaseCharacterMovementComponent::EndMantle()
 {
+	GetBaseCharacterOwner()->bIsMantling = false;
 	IsNextToPlatform = 0;
 	SetMovementMode(MOVE_Walking);
 }
@@ -733,4 +837,88 @@ void UGCBaseCharacterMovementComponent::StartMantle(const FMantlingMovementParam
 	CurrentMantlingParameters = MantlingParametres;
 	CachedPlatformLoc = OverlapLoc;
 	SetMovementMode(EMovementMode::MOVE_Custom, (uint8)ECustomMovementMode::CMOVE_Mantling);
+}
+
+void FSavedMove_GC::Clear()
+{
+	Super::Clear();
+	bSavedIsSprinting = 0;
+	bSavedIsMantling = 0;
+	bSavedIsPressingSlide = 0;
+}
+
+uint8 FSavedMove_GC::GetCompressedFlags() const
+{
+	uint8 Result = Super::GetCompressedFlags();
+
+	//FLAG_Reserved_1 = 0x04,	// Reserved for future use
+	//	FLAG_Reserved_2 = 0x08,	// Reserved for future use
+	//	// Remaining bit masks are available for custom flags.
+	//	FLAG_Custom_0 = 0x10, - Sprinting flag
+	//	FLAG_Custom_1 = 0x20, - Mantling
+	//	FLAG_Custom_2 = 0x40, - Sliding
+	//	FLAG_Custom_3 = 0x80,
+
+	if (bSavedIsSprinting)
+		Result |= FLAG_Custom_0;
+
+	if (bSavedIsMantling)
+	{
+		//инвертирует все биты операнда (мен€ет 0 на 1 и наоборот).
+		//снимаем флаг на прыжок дл€ подт€гивани€
+		Result &= ~FLAG_JumpPressed;
+		Result |= FLAG_Custom_1;
+	}
+
+	if (bSavedIsPressingSlide)
+	{
+		Result &= ~FLAG_Custom_0;
+		Result |= FLAG_Custom_2;
+	}
+
+	return Result;
+}
+
+bool FSavedMove_GC::CanCombineWith(const FSavedMovePtr& NewMovePtr, ACharacter* InCharacter, float MaxDelta) const
+{
+	FSavedMove_GC* NewMove = StaticCast<FSavedMove_GC*>(NewMovePtr.Get());
+
+	if (bSavedIsSprinting != NewMove->bSavedIsSprinting || bSavedIsMantling != NewMove->bSavedIsMantling || bSavedIsPressingSlide != NewMove->bSavedIsPressingSlide)
+		return false;
+
+	return Super::CanCombineWith(NewMovePtr, InCharacter, MaxDelta);
+}
+//NewAccel - новое ускорение
+void FSavedMove_GC::SetMoveFor(ACharacter* InCharacter, float InDeltaTime, FVector const& NewAccel, FNetworkPredictionData_Client_Character& ClientData)
+{
+	Super::SetMoveFor(InCharacter, InDeltaTime, NewAccel, ClientData);
+
+	check(InCharacter->IsA<AGCBaseCharacter>());
+	AGCBaseCharacter* InBaseCharacter = StaticCast<AGCBaseCharacter*>(InCharacter);
+	UGCBaseCharacterMovementComponent* MovementComponent = InBaseCharacter->GetBaseCharacterMovementComponent();
+	//сохран€ем значение
+	bSavedIsSprinting = MovementComponent->bIsSprinting;
+	bSavedIsMantling = InBaseCharacter->bIsMantling;
+	bSavedIsPressingSlide = MovementComponent->bIsSliding;
+}
+
+void FSavedMove_GC::PrepMoveFor(ACharacter* Character)
+{
+	Super::PrepMoveFor(Character);
+
+	UGCBaseCharacterMovementComponent* MovementComponent = StaticCast<UGCBaseCharacterMovementComponent*>(Character->GetMovementComponent());
+
+	MovementComponent->bIsSprinting = bSavedIsSprinting;
+	MovementComponent->bIsSliding = bSavedIsPressingSlide;
+}
+
+FNetworkPredictionData_Client_Character_GC::FNetworkPredictionData_Client_Character_GC(const UCharacterMovementComponent& ClientMovement)
+	: Super(ClientMovement)//быстро вызываем конструктор базового класса
+{
+}
+
+FSavedMovePtr FNetworkPredictionData_Client_Character_GC::AllocateNewMove()
+{
+	//создаЄт указатель FSavedMovePtr на новый созданный объект 
+	return FSavedMovePtr(new FSavedMove_GC());
 }

@@ -6,7 +6,22 @@
 #include "Actors/Equipment/Throwables/ThrowableItem.h"
 #include "Actors/Equipment/Weapons/RangeWeaponItem.h"
 #include "GameCodeTypes.h"
+#include "Net/UnrealNetwork.h"
 
+
+UCharacterEquipmentComponent::UCharacterEquipmentComponent()
+{
+	//рекомендуемый метод для вызова из компонент
+	SetIsReplicatedByDefault(true);
+}
+
+void UCharacterEquipmentComponent::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(UCharacterEquipmentComponent, CurrentEquippedSlot);
+	DOREPLIFETIME(UCharacterEquipmentComponent, AmunitionArray);
+	DOREPLIFETIME(UCharacterEquipmentComponent, ItemsArray);
+}
 
 EEquippedItemType UCharacterEquipmentComponent::GetCurrentEquippedItemType() const
 {
@@ -37,7 +52,7 @@ void UCharacterEquipmentComponent::ReloadCurrentWeapon()
 		return;
 	}
 
-	CurrentEquippedWeapon->StartReload();
+	CurrentEquippedWeapon->Server_StartReload();
 }
 
 //экипируем текущее оружие предыдущее удаляем
@@ -50,7 +65,6 @@ void UCharacterEquipmentComponent::EquipItemInSlot(EEquipmentSlots Slot)
 
 	UnEquipCurrentItem();
 	InitialiseCurrentObjects(Slot);
-	CurrentMeleeWeapon = Cast<AMeleeWeaponItem>(CurrentEquippedItem);
 
 	if (IsValid(CurrentThrowableItem))
 	{
@@ -66,6 +80,7 @@ void UCharacterEquipmentComponent::EquipItemInSlot(EEquipmentSlots Slot)
 		UAnimMontage* EquipMontage = CurrentEquippedItem->GetCharacterEquipAnimMontage();
 		if (IsValid(EquipMontage))
 		{
+			//Multicast_PlayMontage(EquipMontage);
 			bIsEquipping = true;
 			float EquipDuration = CachedBaseCharacter->PlayAnimMontage(EquipMontage);
 			GetWorld()->GetTimerManager().SetTimer(EquipTimer, this, &UCharacterEquipmentComponent::EquipAnimationFinished, EquipDuration, false);
@@ -101,6 +116,11 @@ void UCharacterEquipmentComponent::EquipItemInSlot(EEquipmentSlots Slot)
 	if (OnEquippedItemChanged.IsBound())
 	{
 		OnEquippedItemChanged.Broadcast(CurrentEquippedItem);
+	}
+
+	if (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy)
+	{
+		Server_EquipItemInSlot(CurrentEquippedSlot);
 	}
 }
 
@@ -173,7 +193,7 @@ void UCharacterEquipmentComponent::AttachCurrentItemToEquippedSocket()
 	}
 }
 
-void UCharacterEquipmentComponent::LaunchCurrentThrowableItem()
+void UCharacterEquipmentComponent::LaunchCurrentThrowableItem_Implementation()
 {
 	if (CurrentThrowableItem)
 	{
@@ -235,6 +255,18 @@ bool UCharacterEquipmentComponent::IsEquipping() const
 	return bIsEquipping;
 }
 
+void UCharacterEquipmentComponent::Server_EquipItemInSlot_Implementation(EEquipmentSlots Slot)
+{
+	EquipItemInSlot(Slot);
+}
+
+void UCharacterEquipmentComponent::OnRep_ItemsArray()
+{
+	for (AEquipableItem* Item : ItemsArray)
+		if (IsValid(Item))
+			Item->UnEquip();
+}
+
 //текущее количество доступной амуниции
 int32 UCharacterEquipmentComponent::GetAvailableAmunitionForCurrentWeapon()
 {
@@ -255,12 +287,18 @@ void UCharacterEquipmentComponent::InitialiseCurrentObjects(EEquipmentSlots Slot
 	CurrentEquippedItem = ItemsArray[(uint32)Slot];
 	CurrentEquippedWeapon = Cast<ARangeWeaponItem>(CurrentEquippedItem);
 	CurrentThrowableItem = Cast<AThrowableItem>(CurrentEquippedItem);
+	CurrentMeleeWeapon = Cast<AMeleeWeaponItem>(CurrentEquippedItem);
 }
 
 //разгрузка персонажа. Базовые предметы которые есть у персонажа
 //работает не с одним свойством а с целым массивом
 void UCharacterEquipmentComponent::CreateLoadout()
 {
+	//эктор должен спавниться только на сервере и с сервера передавать инфу
+	//без этого на каждом инстансе будет по 3 персонажа суммарно получается 9
+	if (GetOwner()->GetLocalRole() < ROLE_Authority)
+		return;
+
 	AmunitionArray.AddZeroed((uint32)EAmunitionType::MAX);
 	for (const TPair<EAmunitionType, int32>& AmmoPair : MaxAmunitionAmount)
 	{
@@ -317,6 +355,8 @@ uint32 UCharacterEquipmentComponent::PreviousItemsArraySlotIndex(uint32 CurrentS
 	}
 }
 
+
+
 void UCharacterEquipmentComponent::ReloadAmmoInCurrentWeapon(int32 NumberOfAmmo, bool bCheckIsFull)
 {
 	int32 AvailableAmunition = GetAvailableAmunitionForCurrentWeapon();
@@ -366,6 +406,13 @@ void UCharacterEquipmentComponent::ChangeThrowingStatus(bool Status)
 	ThrowingStatus = Status;
 }
 
+void UCharacterEquipmentComponent::Multicast_PlayMontage_Implementation(UAnimMontage* EquipMontage)
+{
+	bIsEquipping = true;
+	float EquipDuration = CachedBaseCharacter->PlayAnimMontage(EquipMontage);
+	GetWorld()->GetTimerManager().SetTimer(EquipTimer, this, &UCharacterEquipmentComponent::EquipAnimationFinished, EquipDuration, false);
+}
+
 void UCharacterEquipmentComponent::OnWeaponReloadComplete()
 {
 	ReloadAmmoInCurrentWeapon(0, false);
@@ -383,10 +430,16 @@ void UCharacterEquipmentComponent::OnCurrentWeaponAmmoChanged(int32 Ammo)
 	}
 }
 
-void UCharacterEquipmentComponent::OnCurrentThrowableItemsAmountChanged(int32 Items)
+void UCharacterEquipmentComponent::OnCurrentThrowableItemsAmountChanged_Implementation(int32 Items)
 {
 	if (OnCurrentThrowableItemsAmountChangedEvent.IsBound())
 	{
 		OnCurrentThrowableItemsAmountChangedEvent.Broadcast(Items);
 	}
+}
+
+void UCharacterEquipmentComponent::OnRep_CurrentEquippedSlot(EEquipmentSlots CurrentEquippedSlot_Old)
+{
+	//экипировка происходит только на клиенте в тот момент когда св-во меняет значения
+	EquipItemInSlot(CurrentEquippedSlot);
 }

@@ -5,6 +5,13 @@
 #include "GameCodeTypes.h"
 #include "Animation/AnimInstance.h"
 #include "GCBaseCharacter.h"
+#include "Net/UnrealNetwork.h"
+
+void ARangeWeaponItem::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ARangeWeaponItem, Ammo);
+}
 
 ARangeWeaponItem::ARangeWeaponItem()
 {
@@ -19,6 +26,8 @@ ARangeWeaponItem::ARangeWeaponItem()
 	ReticleType = EReticleType::Default;
 	//базовое значение сокета
 	EquippedSocketName = SocketCharacterWeapon;
+
+	SetReplicates(true);
 }
 
 void ARangeWeaponItem::StartFire()
@@ -224,6 +233,17 @@ void ARangeWeaponItem::BeginPlay()
 	Super::BeginPlay();
 	SetAmmo(MaxAmmo);
 	SetOptionalAmmo(MaxOptionalAmmo);
+}
+
+void ARangeWeaponItem::Server_StartReload_Implementation()
+{
+	StartReload();
+	Multicast_StartReload();
+}
+
+void ARangeWeaponItem::Multicast_StartReload_Implementation()
+{
+	StartReload();
 }
 
 float ARangeWeaponItem::GetCurrentBulletSpreadAngle() const

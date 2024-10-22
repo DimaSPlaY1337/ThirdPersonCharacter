@@ -18,6 +18,11 @@ void AExplosiveProjectile::OnProjectileLaunched()
 
 void AExplosiveProjectile::Explode()
 {
+	Multicast_Explode();
+}
+
+void AExplosiveProjectile::Multicast_Explode_Implementation()
+{
 	ExplosionComponent->Explode(GetController());
 }
 

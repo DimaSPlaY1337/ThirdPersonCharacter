@@ -66,7 +66,19 @@ UCLASS()
 class HOMEWORKPROJECT_API UGCBaseCharacterMovementComponent : public UCharacterMovementComponent
 {
 	GENERATED_BODY()
+
+	//означает что FSavedMove_GC будет иметь доступ ко всем полям класса
+	friend class FSavedMove_GC;
+
 public:
+	UGCBaseCharacterMovementComponent();
+
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps)const override;
+
+	virtual FNetworkPredictionData_Client* GetPredictionData_Client() const override;
+	//считывание из CompressedFlags куда мы записали значение
+	virtual void UpdateFromCompressedFlags(uint8 Flags);
+
 	virtual void PhysicsRotation(float DeltaTime) override;
 
 	FORCEINLINE bool IsOutOfStamina() const { return bIsOutOfStamina; }
@@ -140,7 +152,7 @@ public:
 	bool IsSprinting() const;
 
 	UFUNCTION()
-		void OnPlayerCapsuleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
+	void OnPlayerCapsuleHit(UPrimitiveComponent* HitComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, FVector NormalImpulse, const FHitResult& Hit);
 
 	void GetWallRunSideAndDirection(const FVector& HitNormal, EWallRunSide& OutSide, FVector& OutDirection);
 
@@ -153,10 +165,10 @@ public:
 	void StopSlide();
 
 	UPROPERTY(Category = "Character Movement: Slide", EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", UIMin = "0"))
-		UAnimMontage* SlideMontage;
-	
+	UAnimMontage* SlideMontage;
+
 	UPROPERTY(Category = "Character Movement: Slide", EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", UIMin = "0"))
-		float SlideMaxTime = 2.0f;
+	float SlideMaxTime = 2.0f;
 
 protected:
 
@@ -177,72 +189,88 @@ protected:
 	bool AreRequiredKeysDown(EWallRunSide side);
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character movement: sprint", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float SprintSpeed = 1200.0f;
+	float SprintSpeed = 1200.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character movement: prone", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float ProneCapsuleRadius = 40.0f;// Радуиус капсулы в состоянии лежа
+	float ProneCapsuleRadius = 40.0f;// Радуиус капсулы в состоянии лежа
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character movement: prone", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float MaxProneSpeed = 100.0f;
+	float MaxProneSpeed = 100.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character movement: prone", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float ProneCapsuleHalfHeight = 40.0f; // Половина высоты капсулы в состоянии лежа.
+	float ProneCapsuleHalfHeight = 40.0f; // Половина высоты капсулы в состоянии лежа.
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character movement: Swimming", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float SwimmingCapsuleRaduis = 60.0f;
+	float SwimmingCapsuleRaduis = 60.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character movement: Swimming", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float SwimmingCapsuleHalfHeight = 60.0f;
+	float SwimmingCapsuleHalfHeight = 60.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character movement: Ladder", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float ClimbingOnLadderMaxSpeed = 200.0f;
+	float ClimbingOnLadderMaxSpeed = 200.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character movement: Ladder", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float ClimbingOnLadderBrakingDecelaretion = 2048.0f;
+	float ClimbingOnLadderBrakingDecelaretion = 2048.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character movement: Ladder", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float LadderToCharacterOffset = 60.0f;
+	float LadderToCharacterOffset = 60.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character movement: Ladder", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float MaxLedderTopOffset = 90.0f;
+	float MaxLedderTopOffset = 90.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character movement: Ladder", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float MinLadderBottomOffset = 90.0f;
+	float MinLadderBottomOffset = 90.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character movement: Ladder", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float JumpOffFromLadderSpeed = 500.0f;
+	float JumpOffFromLadderSpeed = 500.0f;
 
 	class AGCBaseCharacter* GetBaseCharacterOwner() const;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character movement: Zipline")
-		UCurveFloat* ZiplineCurve;
+	UCurveFloat* ZiplineCurve;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character movement: Zipline")
-		float ZiplineRollDownSpeed = 1.0f;
+	float ZiplineRollDownSpeed = 1.0f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Character: WallRun", meta = (ClampMin = 0.0f, UIMin = 0.0f))
-		float MaxWallRunTime = 1.0f;
+	float MaxWallRunTime = 1.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character: wall run")
-		float MaxWallRunSpeed = 1000.0f;
+	float MaxWallRunSpeed = 1000.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character: wall run")
-		float WallRunBrakingDeceleration = 0.0f;
+	float WallRunBrakingDeceleration = 0.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Character: wall run")
 	float JumpOffFromWallSpeed = 500.0f;
 
 	UPROPERTY(EditAnyWhere, BlueprintReadOnly, Category = "Character: wall run")
-		UCurveFloat* VerticalSpeedForWallRun;
+	UCurveFloat* VerticalSpeedForWallRun;
 
 	UPROPERTY(Category = "Character Movement: Slide", EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", UIMin = "0"))
-		float SlideSpeed = 1000.0f;
+	float SlideSpeed = 1000.0f;
 
 	UPROPERTY(Category = "Character Movement: Slide", EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", UIMin = "0"))
-		float SlideCaspsuleHalfHeight = 60.0f;
+	float SlideCaspsuleHalfHeight = 60.0f;
 
 private:
+	UFUNCTION(Server, Reliable)
+	void Server_Launch(const FVector SlideVelocity);
+
+	UFUNCTION(NetMulticast, Reliable)
+	void Multicast_Launch(const FVector SlideVelocity);
+
+	UPROPERTY(ReplicatedUsing=OnRep_IsSliding)
 	bool bIsSliding = false;
+
+	UFUNCTION(NetMulticast, Reliable)
+	void DeltaHeight(float Delta);
+
+	UFUNCTION()
+	void OnRep_IsSliding(bool bWasSliding);
+
+	float SlideDelta;
+
 	FTimerHandle SlidingTimer;
 
 	int ZiplineWay;
@@ -261,8 +289,8 @@ private:
 	FVector HitNrml;
 	float TargetWallRunTime = 1.0f;
 
-	bool bIsSprinting;
-	bool bIsOutOfStamina;
+	bool bIsSprinting = false;
+	bool bIsOutOfStamina = false;
 	bool bIsWantsToProne;
 	bool bEncroached;
 	float CachedSprintSpeed = SprintSpeed;
@@ -292,4 +320,52 @@ private:
 	FVector CachedPlatformLoc;
 	FRotator ForceTargetRotation = FRotator::ZeroRotator;
 	bool bForceRotation = false;
+};
+//класс записывает информацию о всех действиях, которые были сделаны во время перемещения на клиенте и отсылает ее на сервер как общую информацию о перемещении.
+// Сервер в свою очередь отсылает эту информацию на другие клиенты.
+class FSavedMove_GC : public FSavedMove_Character
+{
+	//делаем так чтобы имя слева можно было использовать ввиде имени справа
+	typedef FSavedMove_Character Super;
+
+public:
+
+	//очищает все выставленные значения, то есть очищает структуру.
+	virtual void Clear() override;
+
+	//возвращает все флаги, что у нас закодированы в FSavedMove_GC 
+	virtual uint8 GetCompressedFlags() const;
+
+	//(про оптимизацию)говорит о том, что мы можем скомбинировать наше перемещение с каким то предыдущим, которое у нас есть
+	//FSavedMovePtr - структура обертка над указателями типа SavedMove
+	//Character - персонаж для которого все это происходит
+	//MaxDelta - различие по времени между тем как оно все произошло
+	virtual bool CanCombineWith(const FSavedMovePtr& NewMovePtr, ACharacter* InCharacter, float MaxDelta) const override;
+
+	//метод который позволяет записать значение в данную структуру
+	virtual void SetMoveFor(ACharacter* InCharacter, float InDeltaTime, FVector const& NewAccel, class FNetworkPredictionData_Client_Character& ClientData) override;
+
+	//читает из данной структуры
+	virtual void PrepMoveFor(ACharacter* Character) override;
+
+private:
+	//признак того что у нас активирован или деактивирован спринт
+	//: 1 - используем 1 байт из 8 битового целого
+	//используем для удобной упаковки структуры данных
+	//можно 8 булевых значений в одном байте закодировать, они будут выровняны как по 8 битовому числу 
+	//и структура будет занимать 8 бит.
+	uint8 bSavedIsSprinting : 1;
+	uint8 bSavedIsMantling : 1;
+	uint8 bSavedIsPressingSlide : 1;
+};
+//благодаря этому классу мы сможем создавать SavedMove и им сможет пользоваться CharacterMovementComponent
+class FNetworkPredictionData_Client_Character_GC : public FNetworkPredictionData_Client_Character
+{
+	typedef FNetworkPredictionData_Client_Character Super;
+
+public:
+	FNetworkPredictionData_Client_Character_GC(const UCharacterMovementComponent& ClientMovement);
+
+	//создаёт новое перемещение
+	virtual FSavedMovePtr AllocateNewMove() override;
 };

@@ -6,6 +6,7 @@
 #include "TimerManager.h"
 #include "AI/Controllers/AITurretController.h"
 #include "Kismet/GameplayStatics.h"
+#include "Net/UnrealNetwork.h"
 
 // Sets default values
 ATurret::ATurret()
@@ -25,8 +26,15 @@ ATurret::ATurret()
 	WeaponBarell->SetupAttachment(TurretBarellComponent);
 
 	TurretAttributesComponent = CreateDefaultSubobject<UTurretAttributesComponent>(TEXT("TurretAttribute"));
-
 	TurretAttributesComponent->OnDeathEvent.AddUObject(this, &ATurret::OnDeath);
+
+	SetReplicates(true);
+}
+
+void ATurret::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+	Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+	DOREPLIFETIME(ATurret, CurrentTarget);
 }
 
 void ATurret::PossessedBy(AController* NewController)
@@ -64,9 +72,8 @@ void ATurret::Tick(float DeltaTime)
 	}
 }
 
-void ATurret::SetCurrentTarget(AActor* NewTarget)
+void ATurret::OnCurrentTargetSet()
 {
-	CurrentTarget = NewTarget;
 	ETurretState NewState = IsValid(CurrentTarget) ? ETurretState::Firing : ETurretState::Searching;
 	SetCurrentTurretState(NewState);
 }
@@ -187,6 +194,11 @@ void ATurret::SetCurrentTurretState(ETurretState NewState)
 		break;
 	}
 	}
+}
+
+void ATurret::OnRep_CurrentTarget()
+{
+	OnCurrentTargetSet();
 }
 
 float ATurret::GetFireInterval() const

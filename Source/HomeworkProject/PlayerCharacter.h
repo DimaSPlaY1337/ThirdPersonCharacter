@@ -54,6 +54,12 @@ public:
 
     void AimCameraUpdate(float Value);
 
+    UFUNCTION(Server, Reliable)
+    void Client_MoveUpMesh(float HalfHeightAdjust);
+
+    UFUNCTION(Server, Reliable)
+    void Client_MoveDownMesh(float HalfHeightAdjust);
+
 protected:
     virtual void OnStartAimingInternal() override;
     virtual void OnStopAimingInternal() override;

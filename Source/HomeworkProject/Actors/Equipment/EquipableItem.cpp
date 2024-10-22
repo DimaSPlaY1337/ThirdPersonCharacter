@@ -4,6 +4,11 @@
 #include "Actors/Equipment/EquipableItem.h"
 #include "GCBaseCharacter.h"
 
+AEquipableItem::AEquipableItem()
+{
+    SetReplicates(true);
+}
+
 void AEquipableItem::SetOwner(AActor* NewOwner)
 {
     Super::SetOwner(NewOwner);
@@ -11,6 +16,10 @@ void AEquipableItem::SetOwner(AActor* NewOwner)
     {
         checkf(GetOwner()->IsA<AGCBaseCharacter>(), TEXT("only character can be an owner of range weapon"));
         CachedCharacterOwner = StaticCast<AGCBaseCharacter*>(GetOwner());
+        if (GetLocalRole() == ROLE_Authority)//вызывается на серевере
+            SetAutonomousProxy(true);
+        //автоматически взависимости от того кто является владельцем нашего эктора, 
+        //он выставит нужной машине данный флаг AutonomousProxy
     }
     else
     {
