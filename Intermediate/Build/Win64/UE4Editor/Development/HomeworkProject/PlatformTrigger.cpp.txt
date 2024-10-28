@@ -1,8 +1,0 @@
-E:\Repos\ThirdPersonCharacter\Intermediate\Build\Win64\UE4Editor\Development\HomeworkProject\Definitions.HomeworkProject.h
-E:\Repos\ThirdPersonCharacter\Source\HomeworkProject\Actors\Environment\PlatformTrigger.h
-E:\Repos\ThirdPersonCharacter\Intermediate\Build\Win64\UE4Editor\Inc\HomeworkProject\PlatformTrigger.generated.h
-E:\Repos\ThirdPersonCharacter\Source\HomeworkProject\GameCodeTypes.h
-C:\MyProject\ue4\UE_4.26\Engine\Source\Runtime\Engine\Classes\Components/BoxComponent.h
-C:\MyProject\ue4\UE_4.26\Engine\Source\Runtime\Engine\Classes\Components/ShapeComponent.h
-C:\MyProject\ue4\UE_4.26\Engine\Intermediate\Build\Win64\UE4Editor\Inc\Engine\ShapeComponent.generated.h
-C:\MyProject\ue4\UE_4.26\Engine\Intermediate\Build\Win64\UE4Editor\Inc\Engine\BoxComponent.generated.h
