@@ -725,8 +725,11 @@ void UGCBaseCharacterMovementComponent::StartSlide()
 	SetPlaneConstraintEnabled(true);
 	SetPlaneConstraintNormal(FVector::UpVector);
 
-	pc = StaticCast<APlayerCharacter*>(UGameplayStatics::GetPlayerCharacter(GetWorld(), 0));
+	pc = StaticCast<APlayerCharacter*>(GetOwner());
 	SlideDelta = DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight() - SlideCaspsuleHalfHeight;
+	FVector CharacterLocation = UpdatedComponent->GetComponentLocation();
+	CharacterLocation.Z -= SlideDelta;
+	CharacterOwner->GetCapsuleComponent()->SetRelativeLocation(CharacterLocation);
 	const FVector SlideDirection = GetCharacterOwner()->GetActorForwardVector();
 	const FVector SlideVelocity = SlideDirection * SlideSpeed;
 
@@ -734,19 +737,12 @@ void UGCBaseCharacterMovementComponent::StartSlide()
 
 	Server_Launch(SlideVelocity);
 
-	if (CharacterOwner->GetMesh() && GetOwner()->GetLocalRole() == ROLE_AutonomousProxy)
-		pc->OnStartSlide(SlideDelta);//здесь происходит смещение мешки и камеры
+	pc->OnStartSlide(SlideDelta);//здесь происходит смещение мешки и камеры
 
-	DeltaHeight(-SlideDelta);//здесь я смещаю компоненту с помощью NetMulticast(то есть делаю то, что закоментировано снизу)
-	/*if (bCrouchMaintainsBaseLocation && GetOwner()->GetLocalRole() == ROLE_SimulatedProxy)
-	{
-		UpdatedComponent->MoveComponent(FVector(0.f, 0.f, -SlideDelta), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
-
-	}*/
 	bIsSliding = true;
 }
 
-void UGCBaseCharacterMovementComponent::StopSlide()
+void UGCBaseCharacterMovementComponent::StopSlide_Implementation()
 {
 	bOrientRotationToMovement = true;
 	SetPlaneConstraintEnabled(false);
@@ -760,28 +756,10 @@ void UGCBaseCharacterMovementComponent::StopSlide()
 	CharacterOwner->GetCapsuleComponent()->SetRelativeLocation(CharacterLocation);
 	CharacterOwner->GetCapsuleComponent()->SetCapsuleSize(DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleRadius(), DefaultCharacter->GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight(), true);
 
-	if (GetOwner()->GetLocalRole() == ROLE_AutonomousProxy)
-	{
-		pc->OnEndSlide(SlideDelta);
-		if (IsEncroached())
-			pc->Crouch();
-	}
-	//if (GetOwner()->GetLocalRole() == ROLE_Authority)
-		pc->Client_MoveDownMesh(SlideDelta);
-	//if (CharacterOwner->GetMesh() && GetOwner()->GetLocalRole() == ROLE_Authority)
-	//{
-	//	pc->OnEndSlide(SlideDelta);
-	//	//DeltaMeshHeightDown(pc);
-	//	if (IsEncroached())
-	//		pc->Crouch();
-	//}
-	//pc->Client_MoveDownMesh();
-	DeltaHeight(SlideDelta);
-	//if (bCrouchMaintainsBaseLocation && GetOwner()->GetLocalRole() == ROLE_SimulatedProxy)
-	//{
-	//	UpdatedComponent->MoveComponent(FVector(0.f, 0.f, SlideDelta), UpdatedComponent->GetComponentQuat(), true, nullptr, EMoveComponentFlags::MOVECOMP_NoFlags, ETeleportType::TeleportPhysics);
-	//	
-	//}
+	pc->OnEndSlide(SlideDelta);
+	if (IsEncroached())
+		pc->Crouch();
+
 	bIsSliding = false;
 }
 

@@ -160,7 +160,6 @@ void APlayerCharacter::OnStartSlide(float HalfHeightAdjust)
 	SpringArmComponent->TargetOffset += FVector(0.0f, 0.0f, HalfHeightAdjust);
 	FVector& MeshRelativeLocation = GetMesh()->GetRelativeLocation_DirectMutable();
 	MeshRelativeLocation.Z = GetMesh()->GetRelativeLocation().Z + HalfHeightAdjust;
-	//Client_MoveUpMesh(HalfHeightAdjust);
 }
 
 void APlayerCharacter::OnEndSlide(float HalfHeightAdjust)
@@ -168,7 +167,6 @@ void APlayerCharacter::OnEndSlide(float HalfHeightAdjust)
 	SpringArmComponent->TargetOffset -= FVector(0.0f, 0.0f, HalfHeightAdjust);
 	const APlayerCharacter* DefaultCharacter = GetClass()->GetDefaultObject<APlayerCharacter>();
 	GetMesh()->SetRelativeLocation(DefaultCharacter->GetMesh()->GetRelativeLocation());
-	//Client_MoveDownMesh();
 }
 
 void APlayerCharacter::SwimForward(float Value)

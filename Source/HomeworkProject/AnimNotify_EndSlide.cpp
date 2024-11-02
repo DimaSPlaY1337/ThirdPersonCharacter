@@ -7,10 +7,16 @@
 
 void UAnimNotify_EndSlide::Notify(USkeletalMeshComponent* MeshComp, UAnimSequenceBase* Animation)
 {
+
 	Super::Notify(MeshComp, Animation);
-	AGCBaseCharacter* CharacterOwner = Cast<AGCBaseCharacter>(MeshComp->GetOwner());
-	if (IsValid(CharacterOwner))
-	{
-		CharacterOwner->GetBaseCharacterMovementComponent()->StopSlide();
+
+	if (MeshComp->GetOwner()->GetLocalRole() == ROLE_Authority) {
+
+		AGCBaseCharacter* CharacterOwner = Cast<AGCBaseCharacter>(MeshComp->GetOwner());
+
+		if (IsValid(CharacterOwner))
+		{
+			CharacterOwner->GetBaseCharacterMovementComponent()->StopSlide();
+		}
 	}
 }

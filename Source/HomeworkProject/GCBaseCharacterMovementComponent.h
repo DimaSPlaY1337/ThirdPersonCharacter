@@ -162,6 +162,7 @@ public:
 
 	void StartSlide();
 
+	UFUNCTION(NetMulticast, Reliable)
 	void StopSlide();
 
 	UPROPERTY(Category = "Character Movement: Slide", EditAnywhere, BlueprintReadWrite, meta = (ClampMin = "0", UIMin = "0"))
